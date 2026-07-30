@@ -1,3 +1,5 @@
+export type Env = CloudflareBindings
+
 export type AppEnv = {
-  Bindings: CloudflareBindings
+  Bindings: Env
 }

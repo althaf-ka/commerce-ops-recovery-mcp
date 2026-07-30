@@ -52,7 +52,25 @@ pnpm dev
 The Worker exposes two separate routes on the same origin:
 
 - `GET /health` for deployment and monitoring checks.
+- `GET /health/database` for the fixed PostgreSQL connectivity check.
 - `/mcp` for Streamable HTTP MCP clients.
+
+For local database development, provide the direct PostgreSQL connection
+string without adding it to `wrangler.jsonc`:
+
+```sh
+export CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="<postgres-uri>"
+pnpm dev
+```
+
+Verify the database path:
+
+```sh
+curl http://localhost:8787/health/database
+```
+
+The endpoint runs only `SELECT 1 AS connected`; it does not accept SQL from
+the request. Deployed traffic uses the cache-disabled `HYPERDRIVE` binding.
 
 Inspect the MCP tools from another terminal:
 
