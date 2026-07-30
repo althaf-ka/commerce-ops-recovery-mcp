@@ -55,13 +55,24 @@ The Worker exposes two separate routes on the same origin:
 - `GET /health/database` for the fixed PostgreSQL connectivity check.
 - `/mcp` for Streamable HTTP MCP clients.
 
-For local database development, provide the direct PostgreSQL connection
-string without adding it to `wrangler.jsonc`:
+For local database development, copy the environment template:
 
 ```sh
-export CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="<postgres-uri>"
+cp .env.example .env
+```
+
+Set `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` in the new
+file to a direct (non-pooled) Neon connection string with
+`sslmode=require`, then start the Worker:
+
+```sh
 pnpm dev
 ```
+
+The `.env` file is ignored by Git. `pnpm dev` loads it into the Wrangler
+process, which uses the connection string to emulate the `HYPERDRIVE`
+binding. Local mode connects directly to PostgreSQL, so Hyperdrive pooling
+and query caching do not run locally.
 
 Verify the database path:
 
@@ -71,6 +82,16 @@ curl http://localhost:8787/health/database
 
 The endpoint runs only `SELECT 1 AS connected`; it does not accept SQL from
 the request. Deployed traffic uses the cache-disabled `HYPERDRIVE` binding.
+
+To test the actual Cloudflare Hyperdrive configuration without deploying,
+use remote development:
+
+```sh
+pnpm dev:remote
+```
+
+Remote development runs the Worker on Cloudflare and uses the hosted Neon
+database, so treat it like a production-data connection.
 
 Inspect the MCP tools from another terminal:
 
