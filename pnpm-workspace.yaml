@@ -1,0 +1,14 @@
+allowBuilds:
+  core-js-pure: true
+  esbuild: false
+  workerd: false
+minimumReleaseAgeExclude:
+  - '@cloudflare/workerd-darwin-64@1.20260730.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20260730.1'
+  - '@cloudflare/workerd-linux-64@1.20260730.1'
+  - '@cloudflare/workerd-linux-arm64@1.20260730.1'
+  - '@cloudflare/workerd-windows-64@1.20260730.1'
+  - '@cloudflare/workers-types@5.20260730.1'
+  - miniflare@4.20260730.0
+  - workerd@1.20260730.1
+  - wrangler@4.116.0
