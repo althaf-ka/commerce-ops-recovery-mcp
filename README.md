@@ -40,3 +40,25 @@ The MCP never:
 - Changes order-item quantities.
 - Modifies packed or dispatched fulfillment.
 - Executes arbitrary SQL or arbitrary status updates.
+
+## Local development
+
+Start the Worker:
+
+```sh
+pnpm dev
+```
+
+The Worker exposes two separate routes on the same origin:
+
+- `GET /health` for deployment and monitoring checks.
+- `/mcp` for Streamable HTTP MCP clients.
+
+Inspect the MCP tools from another terminal:
+
+```sh
+pnpm dlx @modelcontextprotocol/inspector@latest \
+  --cli http://localhost:8787/mcp \
+  --transport http \
+  --method tools/list
+```
