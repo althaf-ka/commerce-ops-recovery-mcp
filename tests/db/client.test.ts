@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { withDatabase } from '../../src/db/client.js'
+import { withDatabaseClient } from '../../src/db/client.js'
 import type { Env } from '../../src/env.js'
 
 const client = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ const env = {
   } as Hyperdrive,
 } satisfies Env
 
-describe('withDatabase', () => {
+describe('withDatabaseClient', () => {
   beforeEach(() => {
     client.config = undefined
     client.connect.mockReset().mockResolvedValue()
@@ -35,10 +35,10 @@ describe('withDatabase', () => {
   it('connects, runs the operation, and closes the client', async () => {
     const operation = vi.fn().mockResolvedValue('result')
 
-    await expect(withDatabase(env, operation)).resolves.toBe('result')
+    await expect(withDatabaseClient(env, operation)).resolves.toBe('result')
     expect(client.config).toEqual({
       connectionString: env.HYPERDRIVE.connectionString,
-      connectionTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 3_000,
     })
     expect(client.connect).toHaveBeenCalledOnce()
     expect(operation).toHaveBeenCalledOnce()
@@ -49,7 +49,7 @@ describe('withDatabase', () => {
     const operationError = new Error('operation failed')
 
     await expect(
-      withDatabase(env, async () => {
+      withDatabaseClient(env, async () => {
         throw operationError
       }),
     ).rejects.toBe(operationError)

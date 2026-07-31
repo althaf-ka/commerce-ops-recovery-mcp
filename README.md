@@ -93,6 +93,23 @@ pnpm dev:remote
 Remote development runs the Worker on Cloudflare and uses the hosted Neon
 database, so treat it like a production-data connection.
 
+## Database schema
+
+The Drizzle schema in `src/db/schema.ts` is the source of truth. Generated
+PostgreSQL migrations and Drizzle metadata are committed under `migrations/`.
+
+With the direct Neon connection string configured in `.env`:
+
+```sh
+pnpm db:generate
+pnpm db:migrate
+pnpm db:verify
+```
+
+`db:verify` checks the complete public table and constraint catalog. Database
+migrations use the direct Neon connection instead of the Worker-facing
+Hyperdrive connection.
+
 Inspect the MCP tools from another terminal:
 
 ```sh

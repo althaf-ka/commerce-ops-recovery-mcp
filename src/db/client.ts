@@ -3,13 +3,13 @@ import type { Env } from '../env.js'
 
 export type DatabaseOperation<Result> = (client: Client) => Promise<Result>
 
-export async function withDatabase<Result>(
+export async function withDatabaseClient<Result>(
   env: Env,
   operation: DatabaseOperation<Result>,
 ): Promise<Result> {
   const client = new Client({
     connectionString: env.HYPERDRIVE.connectionString,
-    connectionTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 3_000,
   })
 
   try {

@@ -1,0 +1,957 @@
+{
+  "id": "12cf53b4-c241-4d98-a593-f6b3681f3515",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.audit_events": {
+      "name": "audit_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "before_state": {
+          "name": "before_state",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "after_state": {
+          "name": "after_state",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "audit_events_order_id_created_at_idx": {
+          "name": "audit_events_order_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_events_plan_id_idx": {
+          "name": "audit_events_plan_id_idx",
+          "columns": [
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "audit_events_order_id_orders_id_fk": {
+          "name": "audit_events_order_id_orders_id_fk",
+          "tableFrom": "audit_events",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "audit_events_plan_id_recovery_plans_id_fk": {
+          "name": "audit_events_plan_id_recovery_plans_id_fk",
+          "tableFrom": "audit_events",
+          "tableTo": "recovery_plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "audit_events_event_type_not_empty_check": {
+          "name": "audit_events_event_type_not_empty_check",
+          "value": "length(\"audit_events\".\"event_type\") > 0"
+        },
+        "audit_events_before_state_object_check": {
+          "name": "audit_events_before_state_object_check",
+          "value": "jsonb_typeof(\"audit_events\".\"before_state\") = 'object'"
+        },
+        "audit_events_after_state_object_check": {
+          "name": "audit_events_after_state_object_check",
+          "value": "jsonb_typeof(\"audit_events\".\"after_state\") = 'object'"
+        },
+        "audit_events_reason_not_empty_check": {
+          "name": "audit_events_reason_not_empty_check",
+          "value": "length(\"audit_events\".\"reason\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.fulfillments": {
+      "name": "fulfillments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocked_reason": {
+          "name": "blocked_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fulfillments_order_id_orders_id_fk": {
+          "name": "fulfillments_order_id_orders_id_fk",
+          "tableFrom": "fulfillments",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fulfillments_order_id_unique": {
+          "name": "fulfillments_order_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "order_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "fulfillments_status_check": {
+          "name": "fulfillments_status_check",
+          "value": "\"fulfillments\".\"status\" in (\n        'blocked',\n        'ready',\n        'packed',\n        'dispatched',\n        'cancelled'\n      )"
+        },
+        "fulfillments_blocked_reason_check": {
+          "name": "fulfillments_blocked_reason_check",
+          "value": "\"fulfillments\".\"status\" <> 'blocked' or \"fulfillments\".\"blocked_reason\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.idempotency_records": {
+      "name": "idempotency_records",
+      "schema": "",
+      "columns": {
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_json": {
+          "name": "result_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idempotency_records_plan_id_idx": {
+          "name": "idempotency_records_plan_id_idx",
+          "columns": [
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "idempotency_records_plan_id_recovery_plans_id_fk": {
+          "name": "idempotency_records_plan_id_recovery_plans_id_fk",
+          "tableFrom": "idempotency_records",
+          "tableTo": "recovery_plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "idempotency_records_key_not_empty_check": {
+          "name": "idempotency_records_key_not_empty_check",
+          "value": "length(\"idempotency_records\".\"idempotency_key\") > 0"
+        },
+        "idempotency_records_request_hash_not_empty_check": {
+          "name": "idempotency_records_request_hash_not_empty_check",
+          "value": "length(\"idempotency_records\".\"request_hash\") > 0"
+        },
+        "idempotency_records_result_object_check": {
+          "name": "idempotency_records_result_object_check",
+          "value": "jsonb_typeof(\"idempotency_records\".\"result_json\") = 'object'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.inventory": {
+      "name": "inventory",
+      "schema": "",
+      "columns": {
+        "sku": {
+          "name": "sku",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "on_hand": {
+          "name": "on_hand",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reserved": {
+          "name": "reserved",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "inventory_sku_not_empty_check": {
+          "name": "inventory_sku_not_empty_check",
+          "value": "length(\"inventory\".\"sku\") > 0"
+        },
+        "inventory_on_hand_nonnegative_check": {
+          "name": "inventory_on_hand_nonnegative_check",
+          "value": "\"inventory\".\"on_hand\" >= 0"
+        },
+        "inventory_reserved_nonnegative_check": {
+          "name": "inventory_reserved_nonnegative_check",
+          "value": "\"inventory\".\"reserved\" >= 0"
+        },
+        "inventory_reserved_not_above_on_hand_check": {
+          "name": "inventory_reserved_not_above_on_hand_check",
+          "value": "\"inventory\".\"reserved\" <= \"inventory\".\"on_hand\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.inventory_reservations": {
+      "name": "inventory_reservations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_item_id": {
+          "name": "order_item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "inventory_reservations_order_item_id_order_items_id_fk": {
+          "name": "inventory_reservations_order_item_id_order_items_id_fk",
+          "tableFrom": "inventory_reservations",
+          "tableTo": "order_items",
+          "columnsFrom": [
+            "order_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "inventory_reservations_order_item_id_unique": {
+          "name": "inventory_reservations_order_item_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "order_item_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "inventory_reservations_quantity_positive_check": {
+          "name": "inventory_reservations_quantity_positive_check",
+          "value": "\"inventory_reservations\".\"quantity\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.order_items": {
+      "name": "order_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sku": {
+          "name": "sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "order_items_order_id_idx": {
+          "name": "order_items_order_id_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "order_items_sku_idx": {
+          "name": "order_items_sku_idx",
+          "columns": [
+            {
+              "expression": "sku",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "order_items_order_id_orders_id_fk": {
+          "name": "order_items_order_id_orders_id_fk",
+          "tableFrom": "order_items",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "order_items_sku_inventory_sku_fk": {
+          "name": "order_items_sku_inventory_sku_fk",
+          "tableFrom": "order_items",
+          "tableTo": "inventory",
+          "columnsFrom": [
+            "sku"
+          ],
+          "columnsTo": [
+            "sku"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "order_items_quantity_positive_check": {
+          "name": "order_items_quantity_positive_check",
+          "value": "\"order_items\".\"quantity\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.orders": {
+      "name": "orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "local_payment_status": {
+          "name": "local_payment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "order_status": {
+          "name": "order_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'payment_pending'"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "orders_local_payment_status_check": {
+          "name": "orders_local_payment_status_check",
+          "value": "\"orders\".\"local_payment_status\" in ('pending', 'paid')"
+        },
+        "orders_order_status_check": {
+          "name": "orders_order_status_check",
+          "value": "\"orders\".\"order_status\" in (\n        'payment_pending',\n        'ready_for_fulfillment',\n        'cancelled',\n        'refunded',\n        'disputed'\n      )"
+        },
+        "orders_version_positive_check": {
+          "name": "orders_version_positive_check",
+          "value": "\"orders\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.processor_payments": {
+      "name": "processor_payments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "processor_payment_id": {
+          "name": "processor_payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "captured_at": {
+          "name": "captured_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "processor_payments_order_id_idx": {
+          "name": "processor_payments_order_id_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "processor_payments_order_id_orders_id_fk": {
+          "name": "processor_payments_order_id_orders_id_fk",
+          "tableFrom": "processor_payments",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "processor_payments_processor_payment_id_unique": {
+          "name": "processor_payments_processor_payment_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "processor_payment_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "processor_payments_processor_id_not_empty_check": {
+          "name": "processor_payments_processor_id_not_empty_check",
+          "value": "length(\"processor_payments\".\"processor_payment_id\") > 0"
+        },
+        "processor_payments_status_check": {
+          "name": "processor_payments_status_check",
+          "value": "\"processor_payments\".\"status\" in (\n        'authorized',\n        'captured',\n        'voided',\n        'refunded',\n        'disputed',\n        'failed'\n      )"
+        },
+        "processor_payments_captured_at_check": {
+          "name": "processor_payments_captured_at_check",
+          "value": "\"processor_payments\".\"status\" not in ('captured', 'refunded', 'disputed')\n        or \"processor_payments\".\"captured_at\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.recovery_plans": {
+      "name": "recovery_plans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_order_version": {
+          "name": "expected_order_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "planned_changes": {
+          "name": "planned_changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "applied_at": {
+          "name": "applied_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "recovery_plans_order_id_status_idx": {
+          "name": "recovery_plans_order_id_status_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "recovery_plans_order_id_orders_id_fk": {
+          "name": "recovery_plans_order_id_orders_id_fk",
+          "tableFrom": "recovery_plans",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recovery_plans_expected_version_positive_check": {
+          "name": "recovery_plans_expected_version_positive_check",
+          "value": "\"recovery_plans\".\"expected_order_version\" > 0"
+        },
+        "recovery_plans_status_check": {
+          "name": "recovery_plans_status_check",
+          "value": "\"recovery_plans\".\"status\" in ('pending', 'applied', 'expired', 'rejected')"
+        },
+        "recovery_plans_planned_changes_object_check": {
+          "name": "recovery_plans_planned_changes_object_check",
+          "value": "jsonb_typeof(\"recovery_plans\".\"planned_changes\") = 'object'"
+        },
+        "recovery_plans_expiry_after_creation_check": {
+          "name": "recovery_plans_expiry_after_creation_check",
+          "value": "\"recovery_plans\".\"expires_at\" > \"recovery_plans\".\"created_at\""
+        },
+        "recovery_plans_applied_at_check": {
+          "name": "recovery_plans_applied_at_check",
+          "value": "(\n        \"recovery_plans\".\"status\" = 'applied' and \"recovery_plans\".\"applied_at\" is not null\n      ) or (\n        \"recovery_plans\".\"status\" <> 'applied' and \"recovery_plans\".\"applied_at\" is null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.webhook_events": {
+      "name": "webhook_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "processor_payment_id": {
+          "name": "processor_payment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "webhook_events_processor_payment_id_idx": {
+          "name": "webhook_events_processor_payment_id_idx",
+          "columns": [
+            {
+              "expression": "processor_payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "webhook_events_processor_payment_id_processor_payments_id_fk": {
+          "name": "webhook_events_processor_payment_id_processor_payments_id_fk",
+          "tableFrom": "webhook_events",
+          "tableTo": "processor_payments",
+          "columnsFrom": [
+            "processor_payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "webhook_events_event_type_not_empty_check": {
+          "name": "webhook_events_event_type_not_empty_check",
+          "value": "length(\"webhook_events\".\"event_type\") > 0"
+        },
+        "webhook_events_delivery_status_check": {
+          "name": "webhook_events_delivery_status_check",
+          "value": "\"webhook_events\".\"delivery_status\" in ('pending', 'processed', 'failed')"
+        },
+        "webhook_events_payload_object_check": {
+          "name": "webhook_events_payload_object_check",
+          "value": "jsonb_typeof(\"webhook_events\".\"payload\") = 'object'"
+        },
+        "webhook_events_failure_error_check": {
+          "name": "webhook_events_failure_error_check",
+          "value": "\"webhook_events\".\"delivery_status\" <> 'failed' or \"webhook_events\".\"error_message\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
