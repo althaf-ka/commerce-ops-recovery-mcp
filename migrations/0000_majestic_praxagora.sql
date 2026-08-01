@@ -1,4 +1,3 @@
--- Generated from src/db/schema.ts. Apply with `pnpm db:migrate`.
 CREATE TABLE "audit_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"order_id" uuid NOT NULL,
@@ -23,13 +22,20 @@ CREATE TABLE "fulfillments" (
 	"updated_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "fulfillments_order_id_unique" UNIQUE("order_id"),
 	CONSTRAINT "fulfillments_status_check" CHECK ("fulfillments"."status" in (
-        'blocked',
-        'ready',
+        'blocked_awaiting_payment',
+        'ready_to_fulfill',
+        'packing',
         'packed',
         'dispatched',
         'cancelled'
       )),
-	CONSTRAINT "fulfillments_blocked_reason_check" CHECK ("fulfillments"."status" <> 'blocked' or "fulfillments"."blocked_reason" is not null)
+	CONSTRAINT "fulfillments_blocked_reason_check" CHECK ((
+        "fulfillments"."status" = 'blocked_awaiting_payment'
+        and "fulfillments"."blocked_reason" is not null
+      ) or (
+        "fulfillments"."status" <> 'blocked_awaiting_payment'
+        and "fulfillments"."blocked_reason" is null
+      ))
 );
 --> statement-breakpoint
 CREATE TABLE "idempotency_records" (
@@ -67,36 +73,51 @@ CREATE TABLE "order_items" (
 	"order_id" uuid NOT NULL,
 	"sku" text NOT NULL,
 	"quantity" integer NOT NULL,
+	"unit_price_minor" integer NOT NULL,
 	"created_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "order_items_quantity_positive_check" CHECK ("order_items"."quantity" > 0)
+	CONSTRAINT "order_items_quantity_positive_check" CHECK ("order_items"."quantity" > 0),
+	CONSTRAINT "order_items_unit_price_nonnegative_check" CHECK ("order_items"."unit_price_minor" >= 0)
 );
 --> statement-breakpoint
 CREATE TABLE "orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_number" text NOT NULL,
 	"local_payment_status" text DEFAULT 'pending' NOT NULL,
-	"order_status" text DEFAULT 'payment_pending' NOT NULL,
+	"order_status" text DEFAULT 'awaiting_payment' NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,
 	"created_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "orders_order_number_unique" UNIQUE("order_number"),
 	CONSTRAINT "orders_local_payment_status_check" CHECK ("orders"."local_payment_status" in ('pending', 'paid')),
 	CONSTRAINT "orders_order_status_check" CHECK ("orders"."order_status" in (
-        'payment_pending',
+        'awaiting_payment',
         'ready_for_fulfillment',
-        'cancelled',
-        'refunded',
-        'disputed'
+        'cancelled'
       )),
-	CONSTRAINT "orders_version_positive_check" CHECK ("orders"."version" > 0)
+	CONSTRAINT "orders_version_positive_check" CHECK ("orders"."version" > 0),
+	CONSTRAINT "orders_order_number_not_empty_check" CHECK (length("orders"."order_number") > 0),
+	CONSTRAINT "orders_workflow_state_check" CHECK ((
+        "orders"."order_status" = 'awaiting_payment'
+        and "orders"."local_payment_status" = 'pending'
+      ) or (
+        "orders"."order_status" = 'ready_for_fulfillment'
+        and "orders"."local_payment_status" = 'paid'
+      ) or (
+        "orders"."order_status" = 'cancelled'
+      ))
 );
 --> statement-breakpoint
 CREATE TABLE "processor_payments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"order_id" uuid NOT NULL,
 	"processor_payment_id" text NOT NULL,
+	"amount_minor" integer NOT NULL,
+	"currency" text NOT NULL,
 	"status" text NOT NULL,
 	"captured_at" timestamp (3) with time zone,
 	"created_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "processor_payments_processor_payment_id_unique" UNIQUE("processor_payment_id"),
+	CONSTRAINT "processor_payments_order_id_unique" UNIQUE("order_id"),
 	CONSTRAINT "processor_payments_processor_id_not_empty_check" CHECK (length("processor_payments"."processor_payment_id") > 0),
 	CONSTRAINT "processor_payments_status_check" CHECK ("processor_payments"."status" in (
         'authorized',
@@ -107,7 +128,9 @@ CREATE TABLE "processor_payments" (
         'failed'
       )),
 	CONSTRAINT "processor_payments_captured_at_check" CHECK ("processor_payments"."status" not in ('captured', 'refunded', 'disputed')
-        or "processor_payments"."captured_at" is not null)
+        or "processor_payments"."captured_at" is not null),
+	CONSTRAINT "processor_payments_amount_positive_check" CHECK ("processor_payments"."amount_minor" > 0),
+	CONSTRAINT "processor_payments_currency_check" CHECK ("processor_payments"."currency" ~ '^[A-Z]{3}$')
 );
 --> statement-breakpoint
 CREATE TABLE "recovery_plans" (
@@ -116,11 +139,20 @@ CREATE TABLE "recovery_plans" (
 	"expected_order_version" integer NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"planned_changes" jsonb NOT NULL,
+	"invalidated_reason" text,
 	"created_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
 	"expires_at" timestamp (3) with time zone NOT NULL,
 	"applied_at" timestamp (3) with time zone,
 	CONSTRAINT "recovery_plans_expected_version_positive_check" CHECK ("recovery_plans"."expected_order_version" > 0),
-	CONSTRAINT "recovery_plans_status_check" CHECK ("recovery_plans"."status" in ('pending', 'applied', 'expired', 'rejected')),
+	CONSTRAINT "recovery_plans_status_check" CHECK ("recovery_plans"."status" in ('pending', 'applied', 'expired', 'invalidated')),
+	CONSTRAINT "recovery_plans_invalidated_reason_check" CHECK ((
+        "recovery_plans"."status" = 'invalidated'
+        and "recovery_plans"."invalidated_reason" is not null
+        and length("recovery_plans"."invalidated_reason") > 0
+      ) or (
+        "recovery_plans"."status" <> 'invalidated'
+        and "recovery_plans"."invalidated_reason" is null
+      )),
 	CONSTRAINT "recovery_plans_planned_changes_object_check" CHECK (jsonb_typeof("recovery_plans"."planned_changes") = 'object'),
 	CONSTRAINT "recovery_plans_expiry_after_creation_check" CHECK ("recovery_plans"."expires_at" > "recovery_plans"."created_at"),
 	CONSTRAINT "recovery_plans_applied_at_check" CHECK ((
@@ -132,7 +164,7 @@ CREATE TABLE "recovery_plans" (
 --> statement-breakpoint
 CREATE TABLE "webhook_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"processor_payment_id" uuid NOT NULL,
+	"payment_id" uuid NOT NULL,
 	"event_type" text NOT NULL,
 	"delivery_status" text NOT NULL,
 	"payload" jsonb NOT NULL,
@@ -154,12 +186,12 @@ ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOR
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_sku_inventory_sku_fk" FOREIGN KEY ("sku") REFERENCES "public"."inventory"("sku") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "processor_payments" ADD CONSTRAINT "processor_payments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "recovery_plans" ADD CONSTRAINT "recovery_plans_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "webhook_events" ADD CONSTRAINT "webhook_events_processor_payment_id_processor_payments_id_fk" FOREIGN KEY ("processor_payment_id") REFERENCES "public"."processor_payments"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "webhook_events" ADD CONSTRAINT "webhook_events_payment_id_processor_payments_id_fk" FOREIGN KEY ("payment_id") REFERENCES "public"."processor_payments"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "audit_events_order_id_created_at_idx" ON "audit_events" USING btree ("order_id","created_at");--> statement-breakpoint
 CREATE INDEX "audit_events_plan_id_idx" ON "audit_events" USING btree ("plan_id");--> statement-breakpoint
 CREATE INDEX "idempotency_records_plan_id_idx" ON "idempotency_records" USING btree ("plan_id");--> statement-breakpoint
 CREATE INDEX "order_items_order_id_idx" ON "order_items" USING btree ("order_id");--> statement-breakpoint
 CREATE INDEX "order_items_sku_idx" ON "order_items" USING btree ("sku");--> statement-breakpoint
-CREATE INDEX "processor_payments_order_id_idx" ON "processor_payments" USING btree ("order_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "recovery_plans_one_pending_per_order_idx" ON "recovery_plans" USING btree ("order_id") WHERE "recovery_plans"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "recovery_plans_order_id_status_idx" ON "recovery_plans" USING btree ("order_id","status");--> statement-breakpoint
-CREATE INDEX "webhook_events_processor_payment_id_idx" ON "webhook_events" USING btree ("processor_payment_id");
+CREATE INDEX "webhook_events_payment_id_idx" ON "webhook_events" USING btree ("payment_id");

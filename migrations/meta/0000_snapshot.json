@@ -1,5 +1,5 @@
 {
-  "id": "12cf53b4-c241-4d98-a593-f6b3681f3515",
+  "id": "315ce8dc-1f10-4867-9457-3137434f577b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -222,11 +222,11 @@
       "checkConstraints": {
         "fulfillments_status_check": {
           "name": "fulfillments_status_check",
-          "value": "\"fulfillments\".\"status\" in (\n        'blocked',\n        'ready',\n        'packed',\n        'dispatched',\n        'cancelled'\n      )"
+          "value": "\"fulfillments\".\"status\" in (\n        'blocked_awaiting_payment',\n        'ready_to_fulfill',\n        'packing',\n        'packed',\n        'dispatched',\n        'cancelled'\n      )"
         },
         "fulfillments_blocked_reason_check": {
           "name": "fulfillments_blocked_reason_check",
-          "value": "\"fulfillments\".\"status\" <> 'blocked' or \"fulfillments\".\"blocked_reason\" is not null"
+          "value": "(\n        \"fulfillments\".\"status\" = 'blocked_awaiting_payment'\n        and \"fulfillments\".\"blocked_reason\" is not null\n      ) or (\n        \"fulfillments\".\"status\" <> 'blocked_awaiting_payment'\n        and \"fulfillments\".\"blocked_reason\" is null\n      )"
         }
       },
       "isRLSEnabled": false
@@ -462,6 +462,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "unit_price_minor": {
+          "name": "unit_price_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp (3) with time zone",
@@ -537,6 +543,10 @@
         "order_items_quantity_positive_check": {
           "name": "order_items_quantity_positive_check",
           "value": "\"order_items\".\"quantity\" > 0"
+        },
+        "order_items_unit_price_nonnegative_check": {
+          "name": "order_items_unit_price_nonnegative_check",
+          "value": "\"order_items\".\"unit_price_minor\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -552,6 +562,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "order_number": {
+          "name": "order_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "local_payment_status": {
           "name": "local_payment_status",
           "type": "text",
@@ -564,7 +580,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'payment_pending'"
+          "default": "'awaiting_payment'"
         },
         "version": {
           "name": "version",
@@ -591,7 +607,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "orders_order_number_unique": {
+          "name": "orders_order_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "order_number"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "orders_local_payment_status_check": {
@@ -600,11 +624,19 @@
         },
         "orders_order_status_check": {
           "name": "orders_order_status_check",
-          "value": "\"orders\".\"order_status\" in (\n        'payment_pending',\n        'ready_for_fulfillment',\n        'cancelled',\n        'refunded',\n        'disputed'\n      )"
+          "value": "\"orders\".\"order_status\" in (\n        'awaiting_payment',\n        'ready_for_fulfillment',\n        'cancelled'\n      )"
         },
         "orders_version_positive_check": {
           "name": "orders_version_positive_check",
           "value": "\"orders\".\"version\" > 0"
+        },
+        "orders_order_number_not_empty_check": {
+          "name": "orders_order_number_not_empty_check",
+          "value": "length(\"orders\".\"order_number\") > 0"
+        },
+        "orders_workflow_state_check": {
+          "name": "orders_workflow_state_check",
+          "value": "(\n        \"orders\".\"order_status\" = 'awaiting_payment'\n        and \"orders\".\"local_payment_status\" = 'pending'\n      ) or (\n        \"orders\".\"order_status\" = 'ready_for_fulfillment'\n        and \"orders\".\"local_payment_status\" = 'paid'\n      ) or (\n        \"orders\".\"order_status\" = 'cancelled'\n      )"
         }
       },
       "isRLSEnabled": false
@@ -632,6 +664,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -652,23 +696,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "processor_payments_order_id_idx": {
-          "name": "processor_payments_order_id_idx",
-          "columns": [
-            {
-              "expression": "order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "processor_payments_order_id_orders_id_fk": {
           "name": "processor_payments_order_id_orders_id_fk",
@@ -692,6 +720,13 @@
           "columns": [
             "processor_payment_id"
           ]
+        },
+        "processor_payments_order_id_unique": {
+          "name": "processor_payments_order_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "order_id"
+          ]
         }
       },
       "policies": {},
@@ -707,6 +742,14 @@
         "processor_payments_captured_at_check": {
           "name": "processor_payments_captured_at_check",
           "value": "\"processor_payments\".\"status\" not in ('captured', 'refunded', 'disputed')\n        or \"processor_payments\".\"captured_at\" is not null"
+        },
+        "processor_payments_amount_positive_check": {
+          "name": "processor_payments_amount_positive_check",
+          "value": "\"processor_payments\".\"amount_minor\" > 0"
+        },
+        "processor_payments_currency_check": {
+          "name": "processor_payments_currency_check",
+          "value": "\"processor_payments\".\"currency\" ~ '^[A-Z]{3}$'"
         }
       },
       "isRLSEnabled": false
@@ -747,6 +790,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "invalidated_reason": {
+          "name": "invalidated_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp (3) with time zone",
@@ -768,6 +817,22 @@
         }
       },
       "indexes": {
+        "recovery_plans_one_pending_per_order_idx": {
+          "name": "recovery_plans_one_pending_per_order_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"recovery_plans\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "recovery_plans_order_id_status_idx": {
           "name": "recovery_plans_order_id_status_idx",
           "columns": [
@@ -815,7 +880,11 @@
         },
         "recovery_plans_status_check": {
           "name": "recovery_plans_status_check",
-          "value": "\"recovery_plans\".\"status\" in ('pending', 'applied', 'expired', 'rejected')"
+          "value": "\"recovery_plans\".\"status\" in ('pending', 'applied', 'expired', 'invalidated')"
+        },
+        "recovery_plans_invalidated_reason_check": {
+          "name": "recovery_plans_invalidated_reason_check",
+          "value": "(\n        \"recovery_plans\".\"status\" = 'invalidated'\n        and \"recovery_plans\".\"invalidated_reason\" is not null\n        and length(\"recovery_plans\".\"invalidated_reason\") > 0\n      ) or (\n        \"recovery_plans\".\"status\" <> 'invalidated'\n        and \"recovery_plans\".\"invalidated_reason\" is null\n      )"
         },
         "recovery_plans_planned_changes_object_check": {
           "name": "recovery_plans_planned_changes_object_check",
@@ -843,8 +912,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "processor_payment_id": {
-          "name": "processor_payment_id",
+        "payment_id": {
+          "name": "payment_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -888,11 +957,11 @@
         }
       },
       "indexes": {
-        "webhook_events_processor_payment_id_idx": {
-          "name": "webhook_events_processor_payment_id_idx",
+        "webhook_events_payment_id_idx": {
+          "name": "webhook_events_payment_id_idx",
           "columns": [
             {
-              "expression": "processor_payment_id",
+              "expression": "payment_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -905,12 +974,12 @@
         }
       },
       "foreignKeys": {
-        "webhook_events_processor_payment_id_processor_payments_id_fk": {
-          "name": "webhook_events_processor_payment_id_processor_payments_id_fk",
+        "webhook_events_payment_id_processor_payments_id_fk": {
+          "name": "webhook_events_payment_id_processor_payments_id_fk",
           "tableFrom": "webhook_events",
           "tableTo": "processor_payments",
           "columnsFrom": [
-            "processor_payment_id"
+            "payment_id"
           ],
           "columnsTo": [
             "id"

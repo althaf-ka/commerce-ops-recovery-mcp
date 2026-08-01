@@ -1,35 +1,23 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
-  auditEvents,
-  fulfillments,
-  idempotencyRecords,
   inventory,
   inventoryReservations,
   orderItems,
   orders,
   processorPayments,
-  recoveryPlans,
+  schema,
   webhookEvents,
 } from '../../src/db/schema.js';
 
-const tables = [
-  auditEvents,
-  fulfillments,
-  idempotencyRecords,
-  inventory,
-  inventoryReservations,
-  orderItems,
-  orders,
-  processorPayments,
-  recoveryPlans,
-  webhookEvents,
-];
-
 describe('commerce schema', () => {
-  it('declares exactly the workflow tables', () => {
-    expect(tables.map((table) => getTableConfig(table).name).sort()).toEqual([
+  it('includes the expected workflow tables', () => {
+    expect(
+      Object.values(schema)
+        .map((table) => getTableConfig(table).name)
+        .sort(),
+    ).toEqual([
       'audit_events',
       'fulfillments',
       'idempotency_records',
@@ -60,6 +48,63 @@ describe('commerce schema', () => {
     );
   });
 
+  it('exposes a unique readable order number', () => {
+    const config = getTableConfig(orders);
+    const orderNumberColumn = config.columns.find(
+      (column) => column.name === 'order_number',
+    );
+
+    const hasColumnLevelUnique = orderNumberColumn?.isUnique === true;
+
+    const hasTableLevelUnique = config.uniqueConstraints.some((constraint) =>
+      constraint.columns.some((column) => column.name === 'order_number'),
+    );
+
+    expect(hasColumnLevelUnique || hasTableLevelUnique).toBe(true);
+  });
+
+  it('stores unit price and captured amount evidence', () => {
+    const orderItemColumns = getTableConfig(orderItems).columns.map(
+      (column) => column.name,
+    );
+    expect(orderItemColumns).toEqual(
+      expect.arrayContaining(['unit_price_minor']),
+    );
+    expect(
+      getTableConfig(orderItems).checks.map((constraint) => constraint.name),
+    ).toEqual(
+      expect.arrayContaining(['order_items_unit_price_nonnegative_check']),
+    );
+
+    const paymentColumns = getTableConfig(processorPayments).columns.map(
+      (column) => column.name,
+    );
+    expect(paymentColumns).toEqual(
+      expect.arrayContaining(['amount_minor', 'currency']),
+    );
+    expect(
+      getTableConfig(processorPayments).checks.map(
+        (constraint) => constraint.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'processor_payments_amount_positive_check',
+        'processor_payments_currency_check',
+      ]),
+    );
+  });
+
+  it('links webhook events to payments through a payment_id foreign key', () => {
+    const config = getTableConfig(webhookEvents);
+
+    expect(config.columns.map((column) => column.name)).toEqual(
+      expect.arrayContaining(['payment_id']),
+    );
+    expect(config.foreignKeys.map((key) => key.getName())).toContain(
+      'webhook_events_payment_id_processor_payments_id_fk',
+    );
+  });
+
   it('prevents more than one reservation for an order item', () => {
     const config = getTableConfig(inventoryReservations);
 
@@ -68,16 +113,34 @@ describe('commerce schema', () => {
     ).toContain('inventory_reservations_order_item_id_unique');
   });
 
-  it('keeps the required recovery and audit fields in the migration', async () => {
-    const migration = await readFile('migrations/0001_initial.sql', 'utf8');
+  it('keeps the required recovery and audit fields in migration history', async () => {
+    const files = (await readdir('migrations'))
+      .filter((file) => file.endsWith('.sql'))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-    expect(migration).toContain('CREATE TABLE "recovery_plans"');
-    expect(migration).toContain('"expected_order_version" integer NOT NULL');
-    expect(migration).toContain('"planned_changes" jsonb NOT NULL');
-    expect(migration).toContain('CREATE TABLE "idempotency_records"');
-    expect(migration).toContain('"idempotency_key" text PRIMARY KEY NOT NULL');
-    expect(migration).toContain('CREATE TABLE "audit_events"');
-    expect(migration).toContain('"before_state" jsonb NOT NULL');
-    expect(migration).toContain('"after_state" jsonb NOT NULL');
+    if (files.length === 0) {
+      throw new Error('No migration SQL files found in migrations/');
+    }
+
+    const migrationHistory = (
+      await Promise.all(
+        files.map((file) => readFile(`migrations/${file}`, 'utf8')),
+      )
+    ).join('\n');
+
+    expect(migrationHistory).toContain('CREATE TABLE "recovery_plans"');
+    expect(migrationHistory).toContain(
+      '"expected_order_version" integer NOT NULL',
+    );
+    expect(migrationHistory).toContain('"planned_changes" jsonb NOT NULL');
+
+    expect(migrationHistory).toContain('CREATE TABLE "idempotency_records"');
+    expect(migrationHistory).toContain(
+      '"idempotency_key" text PRIMARY KEY NOT NULL',
+    );
+
+    expect(migrationHistory).toContain('CREATE TABLE "audit_events"');
+    expect(migrationHistory).toContain('"before_state" jsonb NOT NULL');
+    expect(migrationHistory).toContain('"after_state" jsonb NOT NULL');
   });
 });

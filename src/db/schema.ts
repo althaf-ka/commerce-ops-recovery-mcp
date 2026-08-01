@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -21,22 +22,17 @@ export const orders = pgTable(
   'orders',
   {
     id: uuid().defaultRandom().primaryKey(),
+    orderNumber: text('order_number').notNull().unique(),
     localPaymentStatus: text('local_payment_status', {
       enum: ['pending', 'paid'],
     })
       .notNull()
       .default('pending'),
     orderStatus: text('order_status', {
-      enum: [
-        'payment_pending',
-        'ready_for_fulfillment',
-        'cancelled',
-        'refunded',
-        'disputed',
-      ],
+      enum: ['awaiting_payment', 'ready_for_fulfillment', 'cancelled'],
     })
       .notNull()
-      .default('payment_pending'),
+      .default('awaiting_payment'),
     version: integer().notNull().default(1),
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', timestampConfig).notNull().defaultNow(),
@@ -49,14 +45,28 @@ export const orders = pgTable(
     check(
       'orders_order_status_check',
       sql`${table.orderStatus} in (
-        'payment_pending',
+        'awaiting_payment',
         'ready_for_fulfillment',
-        'cancelled',
-        'refunded',
-        'disputed'
+        'cancelled'
       )`,
     ),
     check('orders_version_positive_check', sql`${table.version} > 0`),
+    check(
+      'orders_order_number_not_empty_check',
+      sql`length(${table.orderNumber}) > 0`,
+    ),
+    check(
+      'orders_workflow_state_check',
+      sql`(
+        ${table.orderStatus} = 'awaiting_payment'
+        and ${table.localPaymentStatus} = 'pending'
+      ) or (
+        ${table.orderStatus} = 'ready_for_fulfillment'
+        and ${table.localPaymentStatus} = 'paid'
+      ) or (
+        ${table.orderStatus} = 'cancelled'
+      )`,
+    ),
   ],
 );
 
@@ -89,12 +99,17 @@ export const orderItems = pgTable(
       .notNull()
       .references(() => inventory.sku, { onDelete: 'restrict' }),
     quantity: integer().notNull(),
+    unitPriceMinor: integer('unit_price_minor').notNull(),
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
   },
   (table) => [
     index('order_items_order_id_idx').on(table.orderId),
     index('order_items_sku_idx').on(table.sku),
     check('order_items_quantity_positive_check', sql`${table.quantity} > 0`),
+    check(
+      'order_items_unit_price_nonnegative_check',
+      sql`${table.unitPriceMinor} >= 0`,
+    ),
   ],
 );
 
@@ -106,6 +121,8 @@ export const processorPayments = pgTable(
       .notNull()
       .references(() => orders.id, { onDelete: 'restrict' }),
     processorPaymentId: text('processor_payment_id').notNull().unique(),
+    amountMinor: integer('amount_minor').notNull(),
+    currency: text().notNull(),
     status: text({
       enum: [
         'authorized',
@@ -120,7 +137,7 @@ export const processorPayments = pgTable(
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
   },
   (table) => [
-    index('processor_payments_order_id_idx').on(table.orderId),
+    unique('processor_payments_order_id_unique').on(table.orderId),
     check(
       'processor_payments_processor_id_not_empty_check',
       sql`length(${table.processorPaymentId}) > 0`,
@@ -141,6 +158,14 @@ export const processorPayments = pgTable(
       sql`${table.status} not in ('captured', 'refunded', 'disputed')
         or ${table.capturedAt} is not null`,
     ),
+    check(
+      'processor_payments_amount_positive_check',
+      sql`${table.amountMinor} > 0`,
+    ),
+    check(
+      'processor_payments_currency_check',
+      sql`${table.currency} ~ '^[A-Z]{3}$'`,
+    ),
   ],
 );
 
@@ -148,7 +173,7 @@ export const webhookEvents = pgTable(
   'webhook_events',
   {
     id: uuid().defaultRandom().primaryKey(),
-    processorPaymentId: uuid('processor_payment_id')
+    paymentId: uuid('payment_id')
       .notNull()
       .references(() => processorPayments.id, { onDelete: 'restrict' }),
     eventType: text('event_type').notNull(),
@@ -163,9 +188,7 @@ export const webhookEvents = pgTable(
     processedAt: timestamp('processed_at', timestampConfig),
   },
   (table) => [
-    index('webhook_events_processor_payment_id_idx').on(
-      table.processorPaymentId,
-    ),
+    index('webhook_events_payment_id_idx').on(table.paymentId),
     check(
       'webhook_events_event_type_not_empty_check',
       sql`length(${table.eventType}) > 0`,
@@ -212,7 +235,14 @@ export const fulfillments = pgTable(
       .notNull()
       .references(() => orders.id, { onDelete: 'restrict' }),
     status: text({
-      enum: ['blocked', 'ready', 'packed', 'dispatched', 'cancelled'],
+      enum: [
+        'blocked_awaiting_payment',
+        'ready_to_fulfill',
+        'packing',
+        'packed',
+        'dispatched',
+        'cancelled',
+      ],
     }).notNull(),
     blockedReason: text('blocked_reason'),
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
@@ -223,8 +253,9 @@ export const fulfillments = pgTable(
     check(
       'fulfillments_status_check',
       sql`${table.status} in (
-        'blocked',
-        'ready',
+        'blocked_awaiting_payment',
+        'ready_to_fulfill',
+        'packing',
         'packed',
         'dispatched',
         'cancelled'
@@ -232,7 +263,13 @@ export const fulfillments = pgTable(
     ),
     check(
       'fulfillments_blocked_reason_check',
-      sql`${table.status} <> 'blocked' or ${table.blockedReason} is not null`,
+      sql`(
+        ${table.status} = 'blocked_awaiting_payment'
+        and ${table.blockedReason} is not null
+      ) or (
+        ${table.status} <> 'blocked_awaiting_payment'
+        and ${table.blockedReason} is null
+      )`,
     ),
   ],
 );
@@ -246,18 +283,22 @@ export const recoveryPlans = pgTable(
       .references(() => orders.id, { onDelete: 'restrict' }),
     expectedOrderVersion: integer('expected_order_version').notNull(),
     status: text({
-      enum: ['pending', 'applied', 'expired', 'rejected'],
+      enum: ['pending', 'applied', 'expired', 'invalidated'],
     })
       .notNull()
       .default('pending'),
     plannedChanges: jsonb('planned_changes')
       .$type<Record<string, unknown>>()
       .notNull(),
+    invalidatedReason: text('invalidated_reason'),
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', timestampConfig).notNull(),
     appliedAt: timestamp('applied_at', timestampConfig),
   },
   (table) => [
+    uniqueIndex('recovery_plans_one_pending_per_order_idx')
+      .on(table.orderId)
+      .where(sql`${table.status} = 'pending'`),
     index('recovery_plans_order_id_status_idx').on(table.orderId, table.status),
     check(
       'recovery_plans_expected_version_positive_check',
@@ -265,7 +306,18 @@ export const recoveryPlans = pgTable(
     ),
     check(
       'recovery_plans_status_check',
-      sql`${table.status} in ('pending', 'applied', 'expired', 'rejected')`,
+      sql`${table.status} in ('pending', 'applied', 'expired', 'invalidated')`,
+    ),
+    check(
+      'recovery_plans_invalidated_reason_check',
+      sql`(
+        ${table.status} = 'invalidated'
+        and ${table.invalidatedReason} is not null
+        and length(${table.invalidatedReason}) > 0
+      ) or (
+        ${table.status} <> 'invalidated'
+        and ${table.invalidatedReason} is null
+      )`,
     ),
     check(
       'recovery_plans_planned_changes_object_check',

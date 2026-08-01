@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { Client } from 'pg';
 
 const connectionString =
-  process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE;
+  process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE ??
+  process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error(
-    'CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE is required',
+    'CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE or DATABASE_URL is required',
   );
 }
 
@@ -43,8 +44,8 @@ const expectedConstraints = [
   'idempotency_records_result_object_check',
   'inventory_on_hand_nonnegative_check',
   'inventory_pkey',
-  'inventory_reservations_order_item_id_unique',
   'inventory_reservations_order_item_id_order_items_id_fk',
+  'inventory_reservations_order_item_id_unique',
   'inventory_reservations_pkey',
   'inventory_reservations_quantity_positive_check',
   'inventory_reserved_nonnegative_check',
@@ -54,12 +55,19 @@ const expectedConstraints = [
   'order_items_pkey',
   'order_items_quantity_positive_check',
   'order_items_sku_inventory_sku_fk',
+  'order_items_unit_price_nonnegative_check',
   'orders_local_payment_status_check',
+  'orders_order_number_not_empty_check',
+  'orders_order_number_unique',
   'orders_order_status_check',
   'orders_pkey',
   'orders_version_positive_check',
+  'orders_workflow_state_check',
+  'processor_payments_amount_positive_check',
   'processor_payments_captured_at_check',
+  'processor_payments_currency_check',
   'processor_payments_order_id_orders_id_fk',
+  'processor_payments_order_id_unique',
   'processor_payments_pkey',
   'processor_payments_processor_id_not_empty_check',
   'processor_payments_processor_payment_id_unique',
@@ -67,6 +75,7 @@ const expectedConstraints = [
   'recovery_plans_applied_at_check',
   'recovery_plans_expected_version_positive_check',
   'recovery_plans_expiry_after_creation_check',
+  'recovery_plans_invalidated_reason_check',
   'recovery_plans_order_id_orders_id_fk',
   'recovery_plans_pkey',
   'recovery_plans_planned_changes_object_check',
@@ -75,8 +84,8 @@ const expectedConstraints = [
   'webhook_events_event_type_not_empty_check',
   'webhook_events_failure_error_check',
   'webhook_events_payload_object_check',
+  'webhook_events_payment_id_processor_payments_id_fk',
   'webhook_events_pkey',
-  'webhook_events_processor_payment_id_processor_payments_id_fk',
 ];
 
 const client = new Client({
@@ -84,8 +93,11 @@ const client = new Client({
   connectionTimeoutMillis: 10_000,
 });
 
+let connected = false;
+
 try {
   await client.connect();
+  connected = true;
 
   const tables = await client.query({
     text: `
@@ -97,9 +109,10 @@ try {
     `,
   });
 
+  // This service is expected to own the public schema exclusively.
   assert.deepEqual(
     tables.rows.map(({ table_name: tableName }) => tableName),
-    expectedTables,
+    [...expectedTables].sort(),
   );
 
   const inventoryColumns = await client.query({
@@ -122,6 +135,7 @@ try {
       SELECT constraint_name
       FROM information_schema.table_constraints
       WHERE table_schema = 'public'
+        -- Exclude provider-generated named NOT NULL constraints if present
         AND constraint_name !~ '^[0-9]+_.*_not_null$'
       ORDER BY constraint_name
     `,
@@ -134,11 +148,64 @@ try {
     [...expectedConstraints].sort(),
   );
 
+  // Deep verification of high-risk constraint SQL definitions
+  const constraintDefs = await client.query({
+    text: `
+      SELECT
+        c.conname AS constraint_name,
+        pg_get_constraintdef(c.oid, true) AS definition
+      FROM pg_constraint AS c
+      JOIN pg_namespace AS n
+        ON n.oid = c.connamespace
+      WHERE n.nspname = 'public'
+      ORDER BY c.conname
+    `,
+  });
+
+  const definitions = new Map(
+    constraintDefs.rows.map(({ constraint_name: name, definition }) => [
+      name,
+      definition,
+    ]),
+  );
+
+  assert.match(
+    definitions.get('order_items_unit_price_nonnegative_check') ?? '',
+    /CHECK \(unit_price_minor >= 0\)/,
+  );
+  assert.match(
+    definitions.get('processor_payments_amount_positive_check') ?? '',
+    /CHECK \(amount_minor > 0\)/,
+  );
+  assert.match(
+    definitions.get('inventory_reserved_not_above_on_hand_check') ?? '',
+    /CHECK \(reserved <= on_hand\)/,
+  );
+  assert.match(
+    definitions.get('webhook_events_payment_id_processor_payments_id_fk') ?? '',
+    /FOREIGN KEY \(payment_id\) REFERENCES processor_payments\(id\)/,
+  );
+  assert.match(
+    definitions.get('orders_order_number_unique') ?? '',
+    /UNIQUE \(order_number\)/,
+  );
+  assert.match(
+    definitions.get('processor_payments_order_id_unique') ?? '',
+    /UNIQUE \(order_id\)/,
+  );
+  assert.match(
+    definitions.get('recovery_plans_expected_version_positive_check') ?? '',
+    /CHECK \(expected_order_version > 0\)/,
+  );
+
   console.log({
     event: 'commerce_schema_verified',
     tables: expectedTables.length,
     constraints: expectedConstraints.length,
+    criticalDefinitionsVerified: 7,
   });
 } finally {
-  await client.end();
+  if (connected) {
+    await client.end();
+  }
 }
