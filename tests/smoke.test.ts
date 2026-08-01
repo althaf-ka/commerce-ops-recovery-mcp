@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest'
-import { app } from '../src/index.js'
+import { describe, expect, it } from 'vitest';
+import { app } from '../src/index.js';
 
-const protocolVersion = '2025-06-18'
+const protocolVersion = '2025-06-18';
 
 type McpRequest = {
-  id: number
-  method: string
-  params: Record<string, unknown>
-}
+  id: number;
+  method: string;
+  params: Record<string, unknown>;
+};
 
 async function sendMcpRequest({ id, method, params }: McpRequest) {
   const response = await app.request(
@@ -26,46 +26,46 @@ async function sendMcpRequest({ id, method, params }: McpRequest) {
         params,
       }),
     }),
-  )
+  );
 
-  const responseText = await response.text()
-  const contentType = response.headers.get('content-type')
+  const responseText = await response.text();
+  const contentType = response.headers.get('content-type');
 
   if (contentType?.includes('text/event-stream')) {
     const data = responseText
       .split('\n')
       .find((line) => line.startsWith('data: '))
-      ?.slice('data: '.length)
+      ?.slice('data: '.length);
 
     if (data === undefined) {
-      throw new Error('MCP response did not contain an SSE data event')
+      throw new Error('MCP response did not contain an SSE data event');
     }
 
     return {
       body: JSON.parse(data) as unknown,
       response,
-    }
+    };
   }
 
   return {
     body: JSON.parse(responseText) as unknown,
     response,
-  }
+  };
 }
 
 describe('HTTP health endpoint', () => {
   it('reports service health', async () => {
-    const response = await app.request('/health')
+    const response = await app.request('/health');
 
-    expect(response.status).toBe(200)
-    expect(response.headers.get('content-type')).toContain('application/json')
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/json');
     await expect(response.json()).resolves.toEqual({
       status: 'ok',
       service: 'commerce-ops-recovery-mcp',
       version: '0.1.0',
-    })
-  })
-})
+    });
+  });
+});
 
 describe('MCP endpoint', () => {
   it('initializes the server', async () => {
@@ -80,9 +80,9 @@ describe('MCP endpoint', () => {
           version: '1.0.0',
         },
       },
-    })
+    });
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
       jsonrpc: '2.0',
       id: 1,
@@ -92,17 +92,17 @@ describe('MCP endpoint', () => {
           version: '0.1.0',
         },
       },
-    })
-  })
+    });
+  });
 
   it('lists the ping tool', async () => {
     const { body, response } = await sendMcpRequest({
       id: 2,
       method: 'tools/list',
       params: {},
-    })
+    });
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
       jsonrpc: '2.0',
       id: 2,
@@ -114,8 +114,8 @@ describe('MCP endpoint', () => {
           },
         ],
       },
-    })
-  })
+    });
+  });
 
   it('calls the ping tool', async () => {
     const { body, response } = await sendMcpRequest({
@@ -127,9 +127,9 @@ describe('MCP endpoint', () => {
           message: 'hello',
         },
       },
-    })
+    });
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
       jsonrpc: '2.0',
       id: 3,
@@ -144,8 +144,8 @@ describe('MCP endpoint', () => {
           received: 'hello',
         },
       },
-    })
-  })
+    });
+  });
 
   it.each([
     ['an empty message', ''],
@@ -160,15 +160,15 @@ describe('MCP endpoint', () => {
           message,
         },
       },
-    })
+    });
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
       jsonrpc: '2.0',
       id: 4,
       result: {
         isError: true,
       },
-    })
-  })
-})
+    });
+  });
+});

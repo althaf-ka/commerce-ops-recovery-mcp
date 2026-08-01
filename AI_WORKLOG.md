@@ -1,32 +1,30 @@
 # AI Worklog
 
-This document records how AI tools were used during planning,
-implementation, debugging, testing, and review.
+## Tools used
 
-## Tools and models
+- **ChatGPT GPT-5.6 Thinking** — planning, architecture, and safety decisions.
+- **OpenCode with DeepSeek V4** — implementation, debugging, and refactoring.
 
-| Area | Tool/model | Reason | Status |
-|---|---|---|---|
-| Product scoping | ChatGPT GPT-5.6 Thinking | Clarify scope and safety boundary | In progress |
+## How AI helped
 
-## Responsibility split
+AI helped me:
 
-The approved product boundary and final engineering decisions remain
-my responsibility. AI-generated code will be reviewed, tested, and
-verified before inclusion.
+- Break the project into smaller phases
+- Set up the Cloudflare Worker and MCP server
+- Connect PostgreSQL through Hyperdrive
+- Fix type, test, and lint issues
 
-## Important prompts
+## My responsibility
 
-To be added during implementation.
+I reviewed all changes, made the final technical decisions, and manually tested the application.
 
-## Suggestions corrected or rejected
+## Verification
 
-To be added during implementation.
+- Type-checking, tests (12), and linting all pass
+- Health routes work
+- MCP tool discovery and execution work
+- PostgreSQL connectivity works
 
-## Verification of AI-generated work
+## Remaining work
 
-To be added during implementation.
-
-## Remaining risks
-
-To be added during implementation.
+Order investigation, recovery planning, approval, transaction, idempotency, and audit features are still being implemented.

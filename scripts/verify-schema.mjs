@@ -1,13 +1,13 @@
-import assert from 'node:assert/strict'
-import { Client } from 'pg'
+import assert from 'node:assert/strict';
+import { Client } from 'pg';
 
 const connectionString =
-  process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE
+  process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE;
 
 if (!connectionString) {
   throw new Error(
     'CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE is required',
-  )
+  );
 }
 
 const expectedTables = [
@@ -21,7 +21,7 @@ const expectedTables = [
   'processor_payments',
   'recovery_plans',
   'webhook_events',
-]
+];
 
 const expectedConstraints = [
   'audit_events_after_state_object_check',
@@ -77,15 +77,15 @@ const expectedConstraints = [
   'webhook_events_payload_object_check',
   'webhook_events_pkey',
   'webhook_events_processor_payment_id_processor_payments_id_fk',
-]
+];
 
 const client = new Client({
   connectionString,
   connectionTimeoutMillis: 10_000,
-})
+});
 
 try {
-  await client.connect()
+  await client.connect();
 
   const tables = await client.query({
     text: `
@@ -95,12 +95,12 @@ try {
         AND table_type = 'BASE TABLE'
       ORDER BY table_name
     `,
-  })
+  });
 
   assert.deepEqual(
     tables.rows.map(({ table_name: tableName }) => tableName),
     expectedTables,
-  )
+  );
 
   const inventoryColumns = await client.query({
     text: `
@@ -110,12 +110,12 @@ try {
         AND table_name = 'inventory'
       ORDER BY ordinal_position
     `,
-  })
+  });
 
   assert.deepEqual(
     inventoryColumns.rows.map(({ column_name: columnName }) => columnName),
     ['sku', 'on_hand', 'reserved'],
-  )
+  );
 
   const constraints = await client.query({
     text: `
@@ -125,20 +125,20 @@ try {
         AND constraint_name !~ '^[0-9]+_.*_not_null$'
       ORDER BY constraint_name
     `,
-  })
+  });
 
   assert.deepEqual(
     constraints.rows.map(
       ({ constraint_name: constraintName }) => constraintName,
     ),
     [...expectedConstraints].sort(),
-  )
+  );
 
   console.log({
     event: 'commerce_schema_verified',
     tables: expectedTables.length,
     constraints: expectedConstraints.length,
-  })
+  });
 } finally {
-  await client.end()
+  await client.end();
 }

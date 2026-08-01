@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm';
 import {
   check,
   index,
@@ -9,13 +9,13 @@ import {
   timestamp,
   unique,
   uuid,
-} from 'drizzle-orm/pg-core'
+} from 'drizzle-orm/pg-core';
 
 const timestampConfig = {
   mode: 'date',
   precision: 3,
   withTimezone: true,
-} as const
+} as const;
 
 export const orders = pgTable(
   'orders',
@@ -58,7 +58,7 @@ export const orders = pgTable(
     ),
     check('orders_version_positive_check', sql`${table.version} > 0`),
   ],
-)
+);
 
 export const inventory = pgTable(
   'inventory',
@@ -70,16 +70,13 @@ export const inventory = pgTable(
   (table) => [
     check('inventory_sku_not_empty_check', sql`length(${table.sku}) > 0`),
     check('inventory_on_hand_nonnegative_check', sql`${table.onHand} >= 0`),
-    check(
-      'inventory_reserved_nonnegative_check',
-      sql`${table.reserved} >= 0`,
-    ),
+    check('inventory_reserved_nonnegative_check', sql`${table.reserved} >= 0`),
     check(
       'inventory_reserved_not_above_on_hand_check',
       sql`${table.reserved} <= ${table.onHand}`,
     ),
   ],
-)
+);
 
 export const orderItems = pgTable(
   'order_items',
@@ -99,7 +96,7 @@ export const orderItems = pgTable(
     index('order_items_sku_idx').on(table.sku),
     check('order_items_quantity_positive_check', sql`${table.quantity} > 0`),
   ],
-)
+);
 
 export const processorPayments = pgTable(
   'processor_payments',
@@ -145,7 +142,7 @@ export const processorPayments = pgTable(
         or ${table.capturedAt} is not null`,
     ),
   ],
-)
+);
 
 export const webhookEvents = pgTable(
   'webhook_events',
@@ -186,7 +183,7 @@ export const webhookEvents = pgTable(
       sql`${table.deliveryStatus} <> 'failed' or ${table.errorMessage} is not null`,
     ),
   ],
-)
+);
 
 export const inventoryReservations = pgTable(
   'inventory_reservations',
@@ -199,15 +196,13 @@ export const inventoryReservations = pgTable(
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
   },
   (table) => [
-    unique('inventory_reservations_order_item_id_unique').on(
-      table.orderItemId,
-    ),
+    unique('inventory_reservations_order_item_id_unique').on(table.orderItemId),
     check(
       'inventory_reservations_quantity_positive_check',
       sql`${table.quantity} > 0`,
     ),
   ],
-)
+);
 
 export const fulfillments = pgTable(
   'fulfillments',
@@ -240,7 +235,7 @@ export const fulfillments = pgTable(
       sql`${table.status} <> 'blocked' or ${table.blockedReason} is not null`,
     ),
   ],
-)
+);
 
 export const recoveryPlans = pgTable(
   'recovery_plans',
@@ -263,10 +258,7 @@ export const recoveryPlans = pgTable(
     appliedAt: timestamp('applied_at', timestampConfig),
   },
   (table) => [
-    index('recovery_plans_order_id_status_idx').on(
-      table.orderId,
-      table.status,
-    ),
+    index('recovery_plans_order_id_status_idx').on(table.orderId, table.status),
     check(
       'recovery_plans_expected_version_positive_check',
       sql`${table.expectedOrderVersion} > 0`,
@@ -292,7 +284,7 @@ export const recoveryPlans = pgTable(
       )`,
     ),
   ],
-)
+);
 
 export const idempotencyRecords = pgTable(
   'idempotency_records',
@@ -302,9 +294,7 @@ export const idempotencyRecords = pgTable(
       .notNull()
       .references(() => recoveryPlans.id, { onDelete: 'restrict' }),
     requestHash: text('request_hash').notNull(),
-    resultJson: jsonb('result_json')
-      .$type<Record<string, unknown>>()
-      .notNull(),
+    resultJson: jsonb('result_json').$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
   },
   (table) => [
@@ -322,7 +312,7 @@ export const idempotencyRecords = pgTable(
       sql`jsonb_typeof(${table.resultJson}) = 'object'`,
     ),
   ],
-)
+);
 
 export const auditEvents = pgTable(
   'audit_events',
@@ -338,9 +328,7 @@ export const auditEvents = pgTable(
     beforeState: jsonb('before_state')
       .$type<Record<string, unknown>>()
       .notNull(),
-    afterState: jsonb('after_state')
-      .$type<Record<string, unknown>>()
-      .notNull(),
+    afterState: jsonb('after_state').$type<Record<string, unknown>>().notNull(),
     reason: text().notNull(),
     createdAt: timestamp('created_at', timestampConfig).notNull().defaultNow(),
   },
@@ -367,4 +355,4 @@ export const auditEvents = pgTable(
       sql`length(${table.reason}) > 0`,
     ),
   ],
-)
+);

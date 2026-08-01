@@ -1,11 +1,11 @@
-import { McpServer } from '@modelcontextprotocol/server'
-import { z } from 'zod'
+import { McpServer } from '@modelcontextprotocol/server';
+import { z } from 'zod';
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: 'commerce-ops-recovery',
     version: '0.1.0',
-  })
+  });
 
   server.registerTool(
     'ping',
@@ -29,7 +29,7 @@ export function createMcpServer(): McpServer {
         received: message,
       },
     }),
-  )
+  );
 
-  return server
+  return server;
 }

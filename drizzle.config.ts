@@ -1,13 +1,13 @@
-import { existsSync } from 'node:fs'
-import { loadEnvFile } from 'node:process'
-import { defineConfig } from 'drizzle-kit'
+import { existsSync } from 'node:fs';
+import { loadEnvFile } from 'node:process';
+import { defineConfig } from 'drizzle-kit';
 
 if (existsSync('.env')) {
-  loadEnvFile('.env')
+  loadEnvFile('.env');
 }
 
 const databaseUrl =
-  process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE
+  process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE;
 
 export default defineConfig({
   dialect: 'postgresql',
@@ -23,4 +23,4 @@ export default defineConfig({
         },
       }
     : {}),
-})
+});
