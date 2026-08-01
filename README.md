@@ -110,6 +110,16 @@ pnpm db:verify
 migrations use the direct Neon connection instead of the Worker-facing
 Hyperdrive connection.
 
+Seed the three deterministic investigation scenarios with:
+
+```sh
+pnpm db:seed
+```
+
+The seed is repeatable and replaces only `ORD-DEMO-1042`, `ORD-DEMO-2042`,
+`ORD-DEMO-3042`, and their dedicated inventory SKUs. All seeded order-item
+prices use INR minor units, and the captured payment currency is INR.
+
 Inspect the MCP tools from another terminal:
 
 ```sh
