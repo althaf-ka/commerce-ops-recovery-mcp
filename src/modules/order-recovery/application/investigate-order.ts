@@ -4,8 +4,8 @@ import {
   type RecoveryEligibilityResult,
 } from '../domain/recovery-policy.js';
 
-export interface InvestigateOrderDependencies {
-  getOrderSnapshot(orderNumber: string): Promise<OrderSnapshot | null>;
+export interface OrderRecoveryRepository {
+  findSnapshotByOrderNumber(orderNumber: string): Promise<OrderSnapshot | null>;
 }
 
 export type InvestigateOrderResult =
@@ -24,13 +24,11 @@ export type InvestigateOrderResult =
       mutated: false;
     };
 
-export function createInvestigateOrder(
-  dependencies: InvestigateOrderDependencies,
-) {
+export function createInvestigateOrder(repository: OrderRecoveryRepository) {
   return async function investigateOrder(
     orderNumber: string,
   ): Promise<InvestigateOrderResult> {
-    const snapshot = await dependencies.getOrderSnapshot(orderNumber);
+    const snapshot = await repository.findSnapshotByOrderNumber(orderNumber);
 
     if (!snapshot) {
       return {

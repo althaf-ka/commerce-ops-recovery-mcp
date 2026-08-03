@@ -54,13 +54,15 @@ function createSnapshot(): OrderSnapshot {
 describe('investigateOrder', () => {
   it('returns a recovery decision for an existing order', async () => {
     const snapshot = createSnapshot();
-    const getOrderSnapshot = vi.fn(async () => snapshot);
-    const investigateOrder = createInvestigateOrder({ getOrderSnapshot });
+    const findSnapshotByOrderNumber = vi.fn(async () => snapshot);
+    const investigateOrder = createInvestigateOrder({
+      findSnapshotByOrderNumber,
+    });
 
     const result = await investigateOrder('ORD-DEMO-1042');
 
-    expect(getOrderSnapshot).toHaveBeenCalledOnce();
-    expect(getOrderSnapshot).toHaveBeenCalledWith('ORD-DEMO-1042');
+    expect(findSnapshotByOrderNumber).toHaveBeenCalledOnce();
+    expect(findSnapshotByOrderNumber).toHaveBeenCalledWith('ORD-DEMO-1042');
     expect(result).toMatchObject({
       found: true,
       orderNumber: 'ORD-DEMO-1042',
@@ -78,13 +80,15 @@ describe('investigateOrder', () => {
   });
 
   it('returns a clear result when the order is missing', async () => {
-    const getOrderSnapshot = vi.fn(async () => null);
-    const investigateOrder = createInvestigateOrder({ getOrderSnapshot });
+    const findSnapshotByOrderNumber = vi.fn(async () => null);
+    const investigateOrder = createInvestigateOrder({
+      findSnapshotByOrderNumber,
+    });
 
     const result = await investigateOrder('ORD-DEMO-9999');
 
-    expect(getOrderSnapshot).toHaveBeenCalledOnce();
-    expect(getOrderSnapshot).toHaveBeenCalledWith('ORD-DEMO-9999');
+    expect(findSnapshotByOrderNumber).toHaveBeenCalledOnce();
+    expect(findSnapshotByOrderNumber).toHaveBeenCalledWith('ORD-DEMO-9999');
     expect(result).toEqual({
       found: false,
       orderNumber: 'ORD-DEMO-9999',

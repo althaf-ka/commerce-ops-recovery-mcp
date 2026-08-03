@@ -9,7 +9,17 @@ import {
   processorPayments,
   webhookEvents,
 } from '../../../db/schema.js';
+import type { OrderRecoveryRepository } from '../application/investigate-order.js';
 import type { OrderSnapshot } from '../domain/order-snapshot.js';
+
+export function createOrderRecoveryRepository(
+  database: Database,
+): OrderRecoveryRepository {
+  return {
+    findSnapshotByOrderNumber: (orderNumber) =>
+      getOrderSnapshot(database, orderNumber),
+  };
+}
 
 export async function getOrderSnapshot(
   database: Database,

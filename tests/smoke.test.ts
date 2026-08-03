@@ -95,7 +95,7 @@ describe('MCP endpoint', () => {
     });
   });
 
-  it('lists the ping tool', async () => {
+  it('lists the investigate order tool', async () => {
     const { body, response } = await sendMcpRequest({
       id: 2,
       method: 'tools/list',
@@ -109,55 +109,31 @@ describe('MCP endpoint', () => {
       result: {
         tools: [
           {
-            name: 'ping',
-            description: 'Confirm that the MCP server is responding.',
+            name: 'investigate_order',
+            title: 'Investigate order recovery',
+            annotations: {
+              readOnlyHint: true,
+              destructiveHint: false,
+              idempotentHint: true,
+              openWorldHint: false,
+            },
           },
         ],
-      },
-    });
-  });
-
-  it('calls the ping tool', async () => {
-    const { body, response } = await sendMcpRequest({
-      id: 3,
-      method: 'tools/call',
-      params: {
-        name: 'ping',
-        arguments: {
-          message: 'hello',
-        },
-      },
-    });
-
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({
-      jsonrpc: '2.0',
-      id: 3,
-      result: {
-        content: [
-          {
-            type: 'text',
-            text: 'Received: hello',
-          },
-        ],
-        structuredContent: {
-          received: 'hello',
-        },
       },
     });
   });
 
   it.each([
-    ['an empty message', ''],
-    ['an incorrectly typed message', 42],
-  ])('rejects %s', async (_case, message) => {
+    ['an empty order number', ''],
+    ['an incorrectly typed order number', 42],
+  ])('rejects %s', async (_case, orderNumber) => {
     const { body, response } = await sendMcpRequest({
       id: 4,
       method: 'tools/call',
       params: {
-        name: 'ping',
+        name: 'investigate_order',
         arguments: {
-          message,
+          orderNumber,
         },
       },
     });
