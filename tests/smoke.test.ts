@@ -95,7 +95,7 @@ describe('MCP endpoint', () => {
     });
   });
 
-  it('lists the investigate order tool', async () => {
+  it('lists the order recovery tools with accurate safety annotations', async () => {
     const { body, response } = await sendMcpRequest({
       id: 2,
       method: 'tools/list',
@@ -115,6 +115,16 @@ describe('MCP endpoint', () => {
               readOnlyHint: true,
               destructiveHint: false,
               idempotentHint: true,
+              openWorldHint: false,
+            },
+          },
+          {
+            name: 'prepare_recovery_plan',
+            title: 'Prepare order recovery plan',
+            annotations: {
+              readOnlyHint: false,
+              destructiveHint: false,
+              idempotentHint: false,
               openWorldHint: false,
             },
           },
