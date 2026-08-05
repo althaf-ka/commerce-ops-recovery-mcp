@@ -109,6 +109,16 @@ describe('MCP endpoint', () => {
       result: {
         tools: [
           {
+            name: 'get_demo_guide',
+            title: 'Get Demo Guide',
+            annotations: {
+              readOnlyHint: true,
+              destructiveHint: false,
+              idempotentHint: true,
+              openWorldHint: false,
+            },
+          },
+          {
             name: 'investigate_order',
             title: 'Investigate order recovery',
             annotations: {

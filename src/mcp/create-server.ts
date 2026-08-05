@@ -1,7 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { withDatabaseClient } from '../db/client.js';
+import { checkDatabaseConnectivity } from '../db/connectivity.js';
 import type { Env } from '../env.js';
+import { createGetDemoGuide } from '../modules/demo-guide/application/get-demo-guide.js';
+import { registerGetDemoGuideTool } from '../modules/demo-guide/mcp/get-demo-guide.tool.js';
 import {
   type ApplyRecoveryTransactionInput,
   createApplyRecovery,
@@ -69,7 +72,14 @@ export function createMcpServer(env: Env): McpServer {
   const investigateOrder = createInvestigateOrder(repository);
   const prepareRecoveryPlan = createPrepareRecoveryPlan(repository);
   const applyRecovery = createApplyRecovery(repository);
+  const getDemoGuide = createGetDemoGuide({
+    repositoryUrl: env?.PROJECT_REPOSITORY_URL,
+    checkDatabaseConnectivity: async () => {
+      await checkDatabaseConnectivity(env);
+    },
+  });
 
+  registerGetDemoGuideTool(server, { getDemoGuide });
   registerInvestigateOrderTool(server, investigateOrder);
   registerPrepareRecoveryPlanTool(server, prepareRecoveryPlan);
   registerApplyRecoveryTool(server, { applyRecovery });

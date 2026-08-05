@@ -110,15 +110,19 @@ pnpm db:verify
 migrations use the direct Neon connection instead of the Worker-facing
 Hyperdrive connection.
 
-Seed the three deterministic investigation scenarios with:
+Seed the four deterministic demo scenarios without replacing existing history:
 
 ```sh
 pnpm db:seed
 ```
 
-The seed is repeatable and replaces only `ORD-DEMO-1042`, `ORD-DEMO-2042`,
-`ORD-DEMO-3042`, and their dedicated inventory SKUs. All seeded order-item
-prices use INR minor units, and the captured payment currency is INR.
+Use `pnpm db:reset-demo` when you intentionally want to remove and recreate
+only `ORD-DEMO-1042` through `ORD-DEMO-1045` and their related synthetic data.
+The scenarios cover already-recovered, two eligible, and insufficient-inventory
+states. Demo orders are mutable, so investigate an order before using it.
+
+Set `PROJECT_REPOSITORY_URL` as a normal Worker variable to expose the public
+repository link through `get_demo_guide`. If omitted, the guide returns `null`.
 
 Inspect the MCP tools from another terminal:
 
