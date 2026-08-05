@@ -128,6 +128,16 @@ describe('MCP endpoint', () => {
               openWorldHint: false,
             },
           },
+          {
+            name: 'apply_recovery',
+            title: 'Apply Recovery Plan',
+            annotations: {
+              readOnlyHint: false,
+              destructiveHint: true,
+              idempotentHint: true,
+              openWorldHint: false,
+            },
+          },
         ],
       },
     });

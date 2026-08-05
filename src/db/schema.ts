@@ -408,3 +408,16 @@ export const auditEvents = pgTable(
     ),
   ],
 );
+
+export const schema = {
+  auditEvents,
+  fulfillments,
+  idempotencyRecords,
+  inventory,
+  inventoryReservations,
+  orderItems,
+  orders,
+  processorPayments,
+  recoveryPlans,
+  webhookEvents,
+};

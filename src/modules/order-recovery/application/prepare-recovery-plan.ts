@@ -2,7 +2,10 @@ import type { OrderSnapshot } from '../domain/order-snapshot.js';
 import type {
   CreateRecoveryPlanInput,
   RecoveryPlan,
-  RecoveryPlannedChanges,
+} from '../domain/recovery-plan.js';
+import {
+  buildRecoveryPlannedChanges,
+  recoveryPlannedChangesMatch,
 } from '../domain/recovery-plan.js';
 import {
   evaluateRecoveryEligibility,
@@ -64,53 +67,6 @@ export interface PrepareRecoveryPlanOptions {
   planTtlMs?: number;
 }
 
-function buildPlannedChanges(snapshot: OrderSnapshot): RecoveryPlannedChanges {
-  return {
-    localPayment: {
-      from: 'pending',
-      to: 'paid',
-    },
-    order: {
-      from: 'awaiting_payment',
-      to: 'ready_for_fulfillment',
-    },
-    fulfillment: {
-      from: 'blocked_awaiting_payment',
-      to: 'ready_to_fulfill',
-    },
-    inventoryReservations: snapshot.items.map((item) => ({
-      orderItemId: item.id,
-      sku: item.sku,
-      quantity: item.quantity,
-    })),
-  };
-}
-
-function plannedChangesMatch(
-  left: RecoveryPlannedChanges,
-  right: RecoveryPlannedChanges,
-): boolean {
-  return (
-    left.localPayment.from === right.localPayment.from &&
-    left.localPayment.to === right.localPayment.to &&
-    left.order.from === right.order.from &&
-    left.order.to === right.order.to &&
-    left.fulfillment.from === right.fulfillment.from &&
-    left.fulfillment.to === right.fulfillment.to &&
-    left.inventoryReservations.length === right.inventoryReservations.length &&
-    left.inventoryReservations.every((reservation, index) => {
-      const other = right.inventoryReservations[index];
-
-      return (
-        other !== undefined &&
-        reservation.orderItemId === other.orderItemId &&
-        reservation.sku === other.sku &&
-        reservation.quantity === other.quantity
-      );
-    })
-  );
-}
-
 export function createPrepareRecoveryPlan(
   repository: PrepareRecoveryPlanRepository,
   options: PrepareRecoveryPlanOptions = {},
@@ -145,7 +101,7 @@ export function createPrepareRecoveryPlan(
     }
 
     const currentTime = now();
-    const plannedChanges = buildPlannedChanges(snapshot);
+    const plannedChanges = buildRecoveryPlannedChanges(snapshot);
     const existingPlan = await repository.findActivePendingPlanByOrderId(
       snapshot.order.id,
       currentTime,
@@ -154,7 +110,7 @@ export function createPrepareRecoveryPlan(
     if (
       existingPlan &&
       existingPlan.expectedOrderVersion === snapshot.order.version &&
-      plannedChangesMatch(existingPlan.plannedChanges, plannedChanges)
+      recoveryPlannedChangesMatch(existingPlan.plannedChanges, plannedChanges)
     ) {
       return {
         plan: existingPlan,
