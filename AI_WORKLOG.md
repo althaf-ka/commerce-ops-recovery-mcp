@@ -2,29 +2,38 @@
 
 ## Tools used
 
-- **ChatGPT GPT-5.6 Thinking** — planning, architecture, and safety decisions.
-- **OpenCode with DeepSeek V4** — implementation, debugging, and refactoring.
+- **ChatGPT GPT-5.6 Thinking** — planning, architecture, tradeoffs, and safety
+  review.
+- **OpenCode with DeepSeek V4** — implementation, debugging, refactoring, and
+  tests.
 
-## How AI helped
+I used the stronger reasoning model for decisions around the MCP workflow,
+recovery boundary, approval, transactions, idempotency, and concurrency.
+DeepSeek V4 was mainly used for faster coding work inside the existing project.
 
-AI helped me:
+## How I used AI
 
-- Break the project into smaller phases
-- Set up the Cloudflare Worker and MCP server
-- Connect PostgreSQL through Hyperdrive
-- Fix type, test, and lint issues
+AI helped me break down the problem, discuss unfamiliar backend concepts,
+review implementation choices, and identify important failure and test cases.
+
+I provided the project constraints, current code structure, database schema,
+approved recovery boundary, and test results throughout the process.
 
 ## My responsibility
 
-I reviewed all changes, made the final technical decisions, and manually tested the application.
+I made the final technical decisions, reviewed and adapted generated code,
+tested the MCP tools, and checked database behavior.
+
+One suggestion I changed was storing an additional idempotency key on the
+recovery plan. I kept the caller-provided key and stored the idempotency result
+separately instead.
 
 ## Verification
 
-- Type-checking, tests (12), and linting all pass
-- Health routes work
-- MCP tool discovery and execution work
-- PostgreSQL connectivity works
+I verified the work through TypeScript checks, automated tests, Biome, schema
+verification, MCP Inspector, and direct database-state checks.
 
-## Remaining work
+## Remaining scope
 
-Order investigation, recovery planning, approval, transaction, idempotency, and audit features are still being implemented.
+The project uses synthetic data and does not call real payment or fulfillment
+providers. Operator authentication is outside the assignment scope.

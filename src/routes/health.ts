@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { SERVICE_METADATA } from '../config/service-metadata.js';
 import { checkDatabaseConnectivity } from '../db/connectivity.js';
 import type { AppEnv } from '../env.js';
 
@@ -6,8 +7,8 @@ export const healthRoutes = new Hono<AppEnv>()
   .get('/', (c) =>
     c.json({
       status: 'ok',
-      service: 'commerce-ops-recovery-mcp',
-      version: '0.1.0',
+      service: SERVICE_METADATA.name,
+      version: SERVICE_METADATA.version,
     }),
   )
   .get('/database', async (c) => {

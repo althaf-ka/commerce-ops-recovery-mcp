@@ -1,26 +1,26 @@
-import { McpServer } from '@modelcontextprotocol/server';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { withDatabaseClient } from '../db/client.js';
-import { checkDatabaseConnectivity } from '../db/connectivity.js';
-import type { Env } from '../env.js';
-import { createGetDemoGuide } from '../modules/demo-guide/application/get-demo-guide.js';
-import { registerGetDemoGuideTool } from '../modules/demo-guide/mcp/get-demo-guide.tool.js';
+import { McpServer } from "@modelcontextprotocol/server";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { withDatabaseClient } from "../db/client.js";
+import { checkDatabaseConnectivity } from "../db/connectivity.js";
+import type { Env } from "../env.js";
+import { createGetDemoGuide } from "../modules/demo-guide/application/get-demo-guide.js";
+import { registerGetDemoGuideTool } from "../modules/demo-guide/mcp/get-demo-guide.tool.js";
 import {
   type ApplyRecoveryTransactionInput,
   createApplyRecovery,
-} from '../modules/order-recovery/application/apply-recovery.js';
-import { createInvestigateOrder } from '../modules/order-recovery/application/investigate-order.js';
-import { createPrepareRecoveryPlan } from '../modules/order-recovery/application/prepare-recovery-plan.js';
-import type { CreateRecoveryPlanInput } from '../modules/order-recovery/domain/recovery-plan.js';
-import { createOrderRecoveryRepository } from '../modules/order-recovery/infrastructure/order-recovery-repository.js';
-import { registerApplyRecoveryTool } from '../modules/order-recovery/mcp/apply-recovery.tool.js';
-import { registerInvestigateOrderTool } from '../modules/order-recovery/mcp/investigate-order.tool.js';
-import { registerPrepareRecoveryPlanTool } from '../modules/order-recovery/mcp/prepare-recovery-plan.tool.js';
+} from "../modules/order-recovery/application/apply-recovery.js";
+import { createInvestigateOrder } from "../modules/order-recovery/application/investigate-order.js";
+import { createPrepareRecoveryPlan } from "../modules/order-recovery/application/prepare-recovery-plan.js";
+import type { CreateRecoveryPlanInput } from "../modules/order-recovery/domain/recovery-plan.js";
+import { createOrderRecoveryRepository } from "../modules/order-recovery/infrastructure/order-recovery-repository.js";
+import { registerApplyRecoveryTool } from "../modules/order-recovery/mcp/apply-recovery.tool.js";
+import { registerInvestigateOrderTool } from "../modules/order-recovery/mcp/investigate-order.tool.js";
+import { registerPrepareRecoveryPlanTool } from "../modules/order-recovery/mcp/prepare-recovery-plan.tool.js";
 
 export function createMcpServer(env: Env): McpServer {
   const server = new McpServer({
-    name: 'commerce-ops-recovery',
-    version: '0.1.0',
+    name: "commerce-ops-recovery",
+    version: "0.1.0",
   });
 
   const repository = {
@@ -69,20 +69,20 @@ export function createMcpServer(env: Env): McpServer {
       }),
   };
 
-  const investigateOrder = createInvestigateOrder(repository);
-  const prepareRecoveryPlan = createPrepareRecoveryPlan(repository);
-  const applyRecovery = createApplyRecovery(repository);
   const getDemoGuide = createGetDemoGuide({
     repositoryUrl: env?.PROJECT_REPOSITORY_URL,
     checkDatabaseConnectivity: async () => {
       await checkDatabaseConnectivity(env);
     },
   });
+  const investigateOrder = createInvestigateOrder(repository);
+  const prepareRecoveryPlan = createPrepareRecoveryPlan(repository);
+  const applyRecovery = createApplyRecovery(repository);
 
+  registerApplyRecoveryTool(server, { applyRecovery });
   registerGetDemoGuideTool(server, { getDemoGuide });
   registerInvestigateOrderTool(server, investigateOrder);
   registerPrepareRecoveryPlanTool(server, prepareRecoveryPlan);
-  registerApplyRecoveryTool(server, { applyRecovery });
 
   return server;
 }
