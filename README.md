@@ -8,17 +8,27 @@ The server investigates the current state, prepares an exact recovery plan,
 waits for approval, and applies the approved changes in one PostgreSQL
 transaction.
 
-## Live MCP demo
+## Demo
+
+https://github.com/user-attachments/assets/39f08ab2-b822-4251-a156-6a6ff5127641
+
+**Recovery flow:** `investigate → prepare recovery plan → explicit approval → atomic recovery`
+
+If the video does not render, [watch the full demo on Google Drive](https://drive.google.com/file/d/11Vqcot0HM32RwRtNbLnV-Gf2XYELTLHd/view).
+
+The demo uses synthetic commerce data and does not contact real payment or fulfillment providers.
+
+## Try it live
 
 **Base URL:**
 [https://commerce-ops-recovery-mcp.demostore.workers.dev](https://commerce-ops-recovery-mcp.demostore.workers.dev)
 
-| Route              | Purpose                          |
-| ------------------ | -------------------------------- |
-| `/`                | Service information              |
-| `/mcp`             | Remote Streamable HTTP endpoint  |
-| `/health`          | Worker health check              |
-| `/health/database` | PostgreSQL connectivity check    |
+| Route              | Purpose                         |
+| ------------------ | ------------------------------- |
+| `/`                | Service information             |
+| `/mcp`             | Remote Streamable HTTP endpoint |
+| `/health`          | Worker health check             |
+| `/health/database` | PostgreSQL connectivity check   |
 
 The `/mcp` route is a protocol endpoint, so opening it directly in a browser
 may return `Method Not Allowed`. Connect through Claude, MCP Inspector, or
